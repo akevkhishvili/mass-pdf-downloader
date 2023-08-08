@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.so
+*.dll
+
+# Distribution / packaging
+.Python
+dist/
+build/
+*.egg
+
+# Environment files
+.env
+.venv/
+
+# Executable files
+*.exe
+
+# Ignore downloaded PDFs
+*.pdf
+
+# Log files
+*.log
+
