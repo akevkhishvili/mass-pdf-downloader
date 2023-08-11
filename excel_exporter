@@ -1,0 +1,105 @@
+import re
+
+from PyQt5 import QtWidgets
+import requests
+import pandas as pd
+import json
+
+
+
+def fetch_data():
+    from_page = int(from_page_input.text())
+    to_page = int(to_page_input.text())
+    size = size_input.text() or '10'
+    base_url = 'https://example.com/api/allFeedback?'
+
+    progress_bar.setMaximum(to_page - from_page + 1)
+    progress_bar.setValue(0)
+
+    data_list = []
+
+    def clean_string(s):
+        if s is None:
+            return None
+        # Remove any control characters
+        return re.sub(r'[\x00-\x1F\x7F]', '', s)
+
+    for page in range(from_page, to_page + 1):
+        params = {
+            'publicationId': '32180832',
+            'page': str(page),
+            'size': size,
+            'sort': 'dateFeedback,DESC',
+        }
+        response = requests.get(base_url, params=params)
+        feedback_data = response.json()["_embedded"]["feedback"]
+
+        for item in feedback_data:
+            attachments = item.get("attachments", [])
+            urls_list = [f"https://example.com/api/download/{attachment.get('documentId')}" for attachment in attachments if attachment.get("documentId")]
+            pages = [attachment.get("pages") for attachment in attachments if attachment.get("pages")]
+
+            row_data = {
+                'dateFeedback': item.get('dateFeedback'),
+                'firstName': item.get('firstName'),
+                'surname': item.get('surname'),
+                'userType': item.get('userType'),
+                'organization': item.get('organization'),
+                'companySize': item.get('companySize'),
+                'country': item.get('country'),
+                'language': item.get('language'),
+                'pages': ', '.join(map(str, pages)),
+                'file_urls': ', '.join(urls_list),
+                'feedback': clean_string(item.get('feedback')),
+
+            }
+            data_list.append(row_data)
+
+        progress_bar.setValue(page - from_page + 1)
+
+    # Create a DataFrame and save to Excel
+    df = pd.DataFrame(data_list)
+    df.to_excel('output.xlsx', index=False)
+
+    url_table.setRowCount(len(data_list))
+    for row, data in enumerate(data_list):
+        url_item = QtWidgets.QTableWidgetItem(data['file_urls'])
+        url_table.setItem(row, 0, url_item)
+
+
+app = QtWidgets.QApplication([])
+
+window = QtWidgets.QWidget()
+window.resize(780, 600)
+layout = QtWidgets.QVBoxLayout()
+
+from_page_label = QtWidgets.QLabel('From Page:')
+from_page_input = QtWidgets.QLineEdit()
+to_page_label = QtWidgets.QLabel('To Page:')
+to_page_input = QtWidgets.QLineEdit()
+size_label = QtWidgets.QLabel('Items per Page (default 10):')
+size_input = QtWidgets.QLineEdit('10')
+fetch_button = QtWidgets.QPushButton('Fetch URLs')
+fetch_button.clicked.connect(fetch_data)
+progress_bar = QtWidgets.QProgressBar()
+
+url_table = QtWidgets.QTableWidget()
+url_table.setColumnCount(1)
+url_table.setHorizontalHeaderLabels(['URL'])
+header = url_table.horizontalHeader()
+header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+
+layout.addWidget(from_page_label)
+layout.addWidget(from_page_input)
+layout.addWidget(to_page_label)
+layout.addWidget(to_page_input)
+layout.addWidget(size_label)
+layout.addWidget(size_input)
+layout.addWidget(fetch_button)
+layout.addWidget(progress_bar)
+layout.addWidget(url_table)
+
+window.setLayout(layout)
+window.show()
+
+app.exec_()
